@@ -224,7 +224,7 @@ class WoodGrain(Script):
             return value / totalAmplitude
 
 
-    def execute(self, data):
+    def execute(self, data: list):
 
         minTemp = float(self.getSettingValueByKey("a_minTemp"))
         maxTemp = float(self.getSettingValueByKey("b_maxTemp"))
@@ -256,7 +256,7 @@ class WoodGrain(Script):
         absolute = False
         firstLayer = False
 
-        for layer in data:
+        for index, layer in enumerate(data):
             #index = data.index(layer)
             lines = layer.split("\n")
             for line in lines:
@@ -316,16 +316,14 @@ class WoodGrain(Script):
         skiplines=0
 
         # Now Modify the gCode
-        for layer in data:
+        for index, layer in enumerate(data):
             if header == 1:
-                index = data.index(layer) 
                 layer = warmingTempCommands + layer
                 data[index] = layer #Override the data of this layer with the modified data
                 header = 0
             lines = layer.split("\n")
             for line in lines:
                 if "; set extruder " in line.lower(): # special fix for BFB
-                    index = data.index(layer) 
                     layer = layer.replace(line,line + "\n" + warmingTempCommands)
                     warmingTempCommands=""
                     savelayer = 1
@@ -354,7 +352,6 @@ class WoodGrain(Script):
                                     postponedTempDelta= 0
                                     temp= maxTemp
                                 postponedTempLast = temp
-                                index = data.index(layer) 
                                 layer = layer.replace(line,line + "\n" + ("M104 S%i ; Wood Grain" + eol) % temp)
                                 savelayer = 1
                             formerZ = thisZ
@@ -376,7 +373,6 @@ class WoodGrain(Script):
                 data[index] = layer
                 savelayer = 0
                 
-        index = data.index(layer)
         layer = layer + graphStr + eol
         data[index] = layer
         return data    
