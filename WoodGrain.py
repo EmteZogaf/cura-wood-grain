@@ -15,7 +15,7 @@
 # License: GNU Affero General Public License http://www.gnu.org/licenses/agpl.html
 # Heavily Modified by: Zhu Da Hai. Sept 2, 2016 (appologies to Jeremie)
 # Compatible with: Cura 2.6.2 - Sort of
-# 2017-07-23: (DaHai) Fixed issue with Relative Move Z-hop in End Gcode of some profiles messing up lastPatchZ  
+# 2017-07-23: (DaHai) Fixed issue with Relative Move Z-hop in End Gcode of some profiles messing up lastPatchZ
 #
 # Bug: Does not always generate M104 Wood Grain changes for the last few layers, no does it always give a layer graph at the end
 #
@@ -37,14 +37,14 @@ class WoodGrain(Script):
         super().__init__()
 
     def getSettingDataString(self):
-        return {
+        return """{
             "name":"Wood Grain",
             "key": "WoodGrain",
             "metadata":{},
             "version": 2,
             "settings":
             {
-                "a_minTemp": 
+                "a_minTemp":
                 {
                     "label": "Min Temp",
                     "description": "Mininmum print temperature (degree C)",
@@ -52,7 +52,7 @@ class WoodGrain(Script):
                     "type": "float",
                     "default_value": 180
                 },
-                "b_maxTemp": 
+                "b_maxTemp":
                 {
                     "label": "Max Temp",
                     "description": "Maximun print temperature (degree C)",
@@ -60,7 +60,7 @@ class WoodGrain(Script):
                     "type": "float",
                     "default_value": 230
                 },
-                "c_firstTemp": 
+                "c_firstTemp":
                 {
                     "label": "First Temp",
                     "description": "Starting temperature (degree C, zero to disable)",
@@ -68,7 +68,7 @@ class WoodGrain(Script):
                     "type": "float",
                     "default_value": 0
                 },
-                "d_grainSize": 
+                "d_grainSize":
                 {
                     "label": "Grain Size",
                     "description": "Average 'wood grain' size (mm)",
@@ -76,7 +76,7 @@ class WoodGrain(Script):
                     "type": "float",
                     "default_value": 3.0
                 },
-                "e_maxUpward": 
+                "e_maxUpward":
                 {
                     "label": "Max Upward",
                     "description": "Instant temperature increase limit, as required by some firmwares (C)",
@@ -84,7 +84,7 @@ class WoodGrain(Script):
                     "type": "float",
                     "default_value": 0
                 },
-                "f_zOffset": 
+                "f_zOffset":
                 {
                     "label": "Z-Offset",
                     "description": "Vertical shift of the variations, as shown at the end of the gcode file (mm)",
@@ -92,7 +92,7 @@ class WoodGrain(Script):
                     "type": "float",
                     "default_value": 1.0
                 },
-                "g_randomSeed": 
+                "g_randomSeed":
                 {
                     "label": "Random Seed",
                     "description": "Seed for Random Number Generator (0 = no seed - randomize)",
@@ -100,7 +100,7 @@ class WoodGrain(Script):
                     "type": "int",
                     "default_value": 0
                 },
-                "h_spikinessPower": 
+                "h_spikinessPower":
                 {
                     "label": "Spikiness Power",
                     "description": "Relative thickness of light bands (power, >1 to make dark bands sparser)",
@@ -109,8 +109,8 @@ class WoodGrain(Script):
                     "default_value": 1.0
                 }
             }
-        }
-    
+        }"""
+
     def getValue(self, line, key, default = None):
         if not key in line or (';' in line and line.find(key) > line.find(';')):
             return default
@@ -143,34 +143,34 @@ class WoodGrain(Script):
         noise = (noise - math.floor(noise)) # normalized to [0,1]
         noise= math.pow(noise, spikinessPower)
         return noise
-    
+
     def noiseToTemp(self, noise, maxTemp, minTemp):
         return minTemp + noise * (maxTemp - minTemp)
 
     class Perlin:
         # Perlin noise: http://mrl.nyu.edu/~perlin/noise/
-    
+
         def __init__(self, tiledim=256):
             self.tiledim= tiledim
             self.perm = [None]*2*tiledim
-    
+
             permutation = []
             # xrange changed to range for Python3
             for value in range(tiledim):
                 permutation.append(value)
             random.shuffle(permutation)
-    
+
             # xrange changed to range for Python3
             for i in range(tiledim):
                 self.perm[i] = permutation[i]
                 self.perm[tiledim+i] = self.perm[i]
-    
+
         def fade(self, t):
             return t * t * t * (t * (t * 6 - 15) + 10)
-    
+
         def lerp(self, t, a, b):
             return a + t * (b - a)
-    
+
         def grad(self, hash, x, y, z):
             #CONVERT LO 4 BITS OF HASH CODE INTO 12 GRADIENT DIRECTIONS.
             h = hash & 15
@@ -185,7 +185,7 @@ class WoodGrain(Script):
             if h&2 == 0: second = v
             else:        second = -v
             return first + second
-    
+
         def noise(self, x,y,z):
             #FIND UNIT CUBE THAT CONTAINS POINT.
             X = int(x)&(self.tiledim-1)
@@ -209,7 +209,7 @@ class WoodGrain(Script):
                 self.lerp(v,
                     self.lerp(u,self.grad(self.perm[AA+1],x  ,y  ,z-1), self.grad(self.perm[BA+1],x-1,y  ,z-1)),
                     self.lerp(u,self.grad(self.perm[AB+1],x  ,y-1,z-1), self.grad(self.perm[BB+1],x-1,y-1,z-1))))
-    
+
         def fractal(self, octaves, persistence, x,y,z, frequency=1):
             value = 0.0
             amplitude = 1.0
@@ -241,12 +241,12 @@ class WoodGrain(Script):
 
         # new 20130727: limit the number of changes for helicoidal/Joris slicing method
         minimumChangeZ=0.1
-        
+
         perlin = WoodGrain.Perlin()
-        
+
         # Generate normalized noises, and then temperatures (will be indexed by Z value)
         noises = {}
-    
+
         # first value is hard encoded since some slicers do not write a Z0 at the first layer!
         # TODO: keep only Z changes that are followed by real extrusion (ie. discard non-printing head movements!)
         noises[0] = self.perlinToNormalizedWood(0, zOffset, grainSize, spikinessPower, perlin)
@@ -275,16 +275,16 @@ class WoodGrain(Script):
                         # layer = ";thisZ|noises = "+str(thisZ)+"|"+str(noises[thisZ])+eol+layer
             #data[index] = layer
         # return data
-    
+
         lastPatchZ = thisZ # record when to stop patching M104, to leave the last one switch the temperature off
         # lastPatchZ = 10.1
-        
+
         # normalize built noises
         noisesMax = noises[max(noises, key = noises.get )]
         noisesMin = noises[min(noises, key = noises.get )]
         for z,v in noises.items():
             noises[z]= (noises[z]-noisesMin)/(noisesMax-noisesMin)
-        
+
 
         #
         # new 20130727: header and first (blocking) temperature change
@@ -310,7 +310,7 @@ class WoodGrain(Script):
         warned = 0
         header = 1
         savelayer = 0
-        
+
         postponedTempDelta=0 # only when maxUpward is used
         postponedTempLast=None # only when maxUpward is used
         skiplines=0
@@ -355,7 +355,7 @@ class WoodGrain(Script):
                                 layer = layer.replace(line,line + "\n" + ("M104 S%i ; Wood Grain" + eol) % temp)
                                 savelayer = 1
                             formerZ = thisZ
-                            
+
                             # Build the corresponding graph line
                             #t = int(19 * noises[thisZ])
                             t= int(19 * (temp-minTemp)/(maxTemp-minTemp))
@@ -372,7 +372,7 @@ class WoodGrain(Script):
             if savelayer == 1:
                 data[index] = layer
                 savelayer = 0
-                
+
         layer = layer + graphStr + eol
         data[index] = layer
-        return data    
+        return data
